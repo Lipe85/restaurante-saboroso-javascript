@@ -51,6 +51,9 @@
           </div>
           <!-- /.box-header -->
           <div class="box-body no-padding">
+            <div style="padding:10px;">
+              <canvas id="chart" style="height:250px;"></canvas>
+            </div>
             <table class="table table-striped table-hover">
               <thead>
                 <tr>
@@ -83,11 +86,9 @@
           <!-- /.box-body -->
           <div class="box-footer clearfix">
             <ul class="pagination pagination-sm no-margin pull-right">
-              <li class="active"><a href="#">«</a></li>
-              <li><a href="#">1</a></li>
-              <li><a href="#">2</a></li>
-              <li><a href="#">3</a></li>
-              <li><a href="#">»</a></li>
+              <% links.forEach(link=>{ %>
+              <li <% if(link.active){ %>class="active"<% } %>><a href="<%=link.href%>"><%=link.text%></a></li>
+              <% }); %>
             </ul>
           </div>
           <!-- /.box-footer -->
@@ -202,6 +203,7 @@
 <%-include('inc/footer')-%>
 
 <script src="/js/moment.min.js"></script>
+<script src="/admin/bower_components/chart.js/dist/Chart.min.js"></script>
 <script src="/js/hcode-formsave.js"></script>
 <script src="/js/hcode-grid.js"></script>
 
@@ -226,6 +228,53 @@
     }
   });
 
-  
+  let grafico = new Chart(document.querySelector('#chart').getContext('2d'),{
+
+    type: 'line',
+    data:{},
+    options:{
+      tooltips:{
+        mode: 'index',
+        intersect: false
+      },
+      scales:{
+        xAxes: [{
+          display: true,
+          scaleLabel: {
+            display: true,
+            labelString: 'Mês'
+          }
+        }],
+        yAxes: [{
+          display: true,
+          scaleLabel: {
+            display: true,
+            labelString: 'Reservas'
+          }
+        }]
+      }
+    }
+
+  });
+
+  fetch(`/admin/reservations/chart${window.location.search}`)
+    .then(response=>response.json())
+    .then(json=>{
+
+      grafico.data = {
+        labels: json.months,
+        datasets:[{
+          data:json.values,
+          label: 'Reservas',
+          backgroundColor: 'rgb(54, 162, 235)',
+          borderColor: "rgb(54, 162, 235)",
+          fill: true,
+          pointBackgroundColor: '#FFF'
+        }]
+      };
+
+      grafico.update();
+
+    });
 
 </script>

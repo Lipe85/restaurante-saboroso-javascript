@@ -1,4 +1,6 @@
 var conn = require('./db');
+var Pagination = require('./pagination');
+var moment = require('moment');
 
 module.exports = {
 
@@ -74,20 +76,37 @@ module.exports = {
 
     },
 
-    getReservations(){
+    getReservations(req){
 
-        return new Promise((resolve, reject)=>{
+         return new Promise((resolve, reject)=>{
+            
+            let page = req.query.page;
+            let dtStart = req.query.start;
+            let dtEnd = req.query.end;
 
-            conn.query(`
-                SELECT * FROM tb_reservations ORDER BY date DESC
-            `, (err, results)=>{
 
-                if(err){
-                    reject(err);
-                }
+            if(!page) page = 1;
 
-                resolve(results);
-                
+            let params = [];
+
+            if(dtStart && dtEnd) params.push(dtStart, dtEnd);
+
+            let pag = new Pagination(
+                `
+                    SELECT SQL_CALC_FOUND_ROWS * 
+                    FROM tb_reservations 
+                    ${(dtStart && dtEnd)? 'WHERE date BETWEEN ? AND ?': ''} 
+                    ORDER BY name DESC LIMIT ?, ?
+                `, 
+                params
+            );
+
+            pag.getPage(page).then(data=>{
+                resolve({
+                    data,
+                    links: pag.getNavigation(req.query)
+                });
+
             });
 
         });
@@ -113,6 +132,52 @@ module.exports = {
                 }
 
             });
+
+        });
+
+    },
+
+    chart(req){
+
+        return new Promise((resolve, reject)=>{
+
+            conn.query(`
+                SELECT 
+                CONCAT(YEAR(date), '-', MONTH(date)) AS date, 
+                COUNT(*) AS total, 
+                SUM(people) / COUNT(*) AS avg_people 
+                FROM tb_reservations
+                WHERE date BETWEEN ? AND ?
+                GROUP BY YEAR(date), MONTH(date)
+                ORDER BY YEAR(date) DESC, MONTH(date) DESC;
+            `, [
+                req.query.start,
+                req.query.end
+            ], (err, results)=>{
+
+                if(err){
+                    reject(err);
+                }else{
+                    
+                    let months = [];
+                    let values = [];
+                    
+                    results.forEach(row=>{
+
+                        
+                        months.push(moment(row.date).format('MMM YYYY'));
+                        values.push(row.total);
+
+
+                    })
+
+                    resolve({
+                        months, 
+                        values
+                    });
+                }
+
+            })
 
         });
 
